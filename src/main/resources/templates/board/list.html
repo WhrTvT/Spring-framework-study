@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>게시판 - 목록</title>
+    <link rel="stylesheet" href="/webjars/bootstrap/5.3.3/css/bootstrap.min.css" />
+</head>
+<body>
+<header th:insert="~{common/header.html}"></header>
+<div class="container">
+    <table class="table">
+        <thead class="thead-light">
+        <tr class="text-center">
+            <th scope="col">#</th>
+            <th scope="col">제목</th>
+            <th scope="col">작성자</th>
+            <th scope="col">내용</th>
+            <th scope="col">날짜</th>
+        </tr>
+        </thead>
+        <tbody id="boardTableBody">
+        <!-- 게시글 데이터가 여기에 동적으로 추가됩니다 -->
+        <!--
+        <tr class="text-center" th:each="post : ${postList}">
+            <th scope="row">
+                <span th:text="${post.boardId}"></span>
+            </th>
+            <td>
+                <a th:href="@{'/post/' + ${post.boardId}}">
+                    <span th:text="${post.title}"></span>
+                </a>
+            </td>
+            <td>
+                <span th:text="${post.author}"></span>
+            </td>
+            <td>
+                <span th:text="${post.content}"></span>
+            </td>
+            <td>
+                <span th:text="${post.updatedAt}"></span>
+            </td>
+        </tr>
+        -->
+        </tbody>
+    </table>
+    <div class="row">
+        <div class="col-auto mr-auto"></div>
+        <div class="col-auto">
+            <a class="btn btn-primary" th:href="@{/board/post}" role="button">글쓰기</a>
+        </div>
+    </div>
+    <div id="pagination" class="text-center mt-3">
+        <!-- 페이지네이션 버튼이 여기에 추가됩니다 -->
+    </div>
+</div>
+<script src="/webjars/jquery/3.7.1/dist/jquery.min.js"></script>
+<script src="/webjars/bootstrap/5.3.3/js/bootstrap.min.js"></script>
+<script>
+    // 페이지네이션 정보를 HTML에서 읽어오기
+    const currentPage = [[${page} ?: 1]];
+    const pageSize = [[${size} ?: 5]];
+
+    // API로부터 게시판 데이터 가져오기
+    fetch(`/api/board?page=${currentPage}&size=${pageSize}`)
+        .then(response => response.json())
+        .then(data => {
+            const tableBody = document.getElementById('boardTableBody');
+            const posts = data.content;
+            // 기존 내용 제거
+            tableBody.innerHTML = '';
+
+            // 게시글 데이터 렌더링
+            posts.forEach(post => {
+                const row = document.createElement('tr');
+                row.classList.add('text-center');
+                row.innerHTML = `
+                    <th scope="row">${post.boardId}</th>
+                    <td>
+                        <a href="/board/${post.boardId}">
+                            ${post.title}
+                        </a>
+                    </td>
+                    <td>${post.author || '익명'}</td>
+                    <td>${post.content}</td>
+                    <td>${new Date(post.updatedAt).toLocaleString()}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            // 페이지네이션 처리
+            setupPagination(data.totalPages, currentPage);
+        })
+        .catch(error => {
+            console.error('Error fetching board data:', error);
+            alert('게시판 데이터를 불러오는 중 오류가 발생했습니다.');
+        });
+
+    // 페이지네이션 버튼 생성
+    function setupPagination(totalPages, currentPage) {
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = ''; // 기존 버튼 제거
+
+        for (let i = 1; i <= totalPages; i++) {
+            const button = document.createElement('button');
+            button.className = 'btn btn-secondary';
+            button.textContent = i;
+            if (i === currentPage) button.classList.add('active');
+
+            button.addEventListener('click', () => {
+                window.location.href = `/board?page=${i}&size=${pageSize}`;
+            });
+
+            pagination.appendChild(button);
+        }
+    }
+</script>
+</body>
+</html>

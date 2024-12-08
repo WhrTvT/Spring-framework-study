@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <!--<title th:text="@{'게시판 - ' + ${post.title}}"></title>-->
+    <title id="page-title">게시판 - 상세</title>
+    <link rel="stylesheet" href="/webjars/bootstrap/5.3.3/css/bootstrap.min.css" />
+</head>
+<body>
+<header th:insert="~{common/header.html}"></header>
+<div class="container">
+    <div class="card">
+        <div class="card-body">
+            <!--
+            <h5 class="card-title" th:text="@{${post.title} + ' - ' + ${post.author}}"></h5>
+            <p class="card-text" th:text="${post.content}"></p>
+            -->
+            <h5 class="card-title" id="post-title"></h5>
+            <p class="card-text" id="post-content"></p>
+        </div>
+    </div>
+
+    <!-- 댓글 목록 -->
+    <div class="mt-4">
+        <h5>댓글</h5>
+        <ul id="reply-list" class="list-group"></ul>
+        <div id="pagination" class="mt-3 text-center"></div>
+    </div>
+
+    <!-- 댓글 작성 -->
+    <div class="mt-3">
+        <h5>댓글 작성</h5>
+        <form id="reply-form">
+            <div class="form-group">
+                <textarea id="reply-content" class="form-control" placeholder="댓글을 입력하세요"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">댓글 작성</button>
+        </form>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-auto mr-auto"></div>
+        <div class="col-auto">
+            <!--<a class="btn btn-info" th:href="@{'/baord/edit/' + ${post.boardId}}" role="button">수정</a>-->
+            <a id="edit-btn" class="btn btn-info" role="button">수정</a>
+            <a id="delete-btn" class="btn btn-danger" role="button" onclick="deletePost()">삭제</a>
+        </div>
+    </div>
+</div>
+<script src="/webjars/jquery/3.7.1/dist/jquery.min.js"></script>
+<script src="/webjars/bootstrap/5.3.3/js/bootstrap.min.js"></script>
+<script>
+    // 게시글 ID 가져오기 (URL에서 추출)
+    const boardId = window.location.pathname.split('/').pop();
+
+    // REST API 호출하여 게시글 데이터 가져오기
+    fetch(`/api/board/${boardId}`)
+        .then(response => response.json())
+        .then(data => {
+            // 제목과 내용 설정
+            document.getElementById('page-title').textContent = `게시판 - ${data.title}`;
+            document.getElementById('post-title').textContent = `${data.title} - ${data.author || '익명'}`;
+            document.getElementById('post-content').textContent = data.content;
+
+            // 수정 링크 설정
+            document.getElementById('edit-btn').href = `/board/edit/${data.boardId}`;
+        })
+        .catch(error => {
+            console.error('Error fetching post data:', error);
+            alert('게시글 데이터를 불러오는 중 오류가 발생했습니다.');
+        });
+
+
+    // 댓글 페이지네이션 정보를 HTML에서 읽어오기
+    const replyPage = [[${page} ?: 1]];
+    const replySize = [[${size} ?: 5]];
+
+    // 댓글 목록 로드
+    function loadReplies(replyPage = 1) {
+        fetch(`/api/reply/${boardId}?page=${replyPage}&size=${replySize}`)
+            .then(response => response.json())
+            .then(data => {
+                const replyList = document.getElementById('reply-list');
+                const pagination = document.getElementById('pagination');
+                replyList.innerHTML = ''; // 기존 댓글 제거
+                pagination.innerHTML = '';
+
+                data.content.forEach(reply => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    li.innerHTML = `
+                        <div>
+                            <span>${reply.reContent}</span>
+                            <small class="text-muted float-end">${new Date(reply.updatedAt).toLocaleString()}</small>
+                        </div>
+                        <div class="mt-2 text-end">
+                            <button class="btn btn-info btn-sm" onclick="editReply(${reply.replyId}, '${reply.reContent}')">수정</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteReply(${reply.replyId})">삭제</button>
+                        </div>
+                    `;
+                    replyList.appendChild(li);
+                });
+
+                // 페이지네이션 렌더링
+                for (let i = 1; i <= data.totalPages; i++) {
+                    const button = document.createElement('button');
+                    button.className = 'btn btn-secondary btn-sm mx-1';
+                    button.textContent = i;
+                    if (i === replyPage) button.classList.add('active');
+                    button.addEventListener('click', () => loadReplies(i));
+                    pagination.appendChild(button);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading replies:', error);
+            });
+    }
+
+    // 댓글 작성
+    document.getElementById('reply-form').addEventListener('submit', function (event) {
+        event.preventDefault();
+        const replyContent = document.getElementById('reply-content').value;
+
+        fetch(`/api/reply/${boardId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ reContent: replyContent }),
+        })
+            .then(response => {
+                if (response.status === 201) {
+                    alert('댓글이 성공적으로 등록되었습니다.');
+                    document.getElementById('reply-content').value = '';
+                    loadReplies(replyPage);
+                } else {
+                    throw new Error('댓글 작성 실패');
+                }
+            })
+            .catch(error => console.error('Error creating reply:', error));
+    });
+
+    // 댓글 수정
+    function editReply(replyId, currentContent) {
+        const newContent = prompt('댓글을 수정하세요:', currentContent);
+        if (newContent && newContent !== currentContent) {
+            fetch(`/api/reply/${boardId}/${replyId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ reContent: newContent }),
+            })
+                .then(response => {
+                    if (response.status === 200) {
+                        loadReplies(replyPage);
+                    } else {
+                        throw new Error('댓글 수정 실패');
+                    }
+                })
+                .catch(error => console.error('Error updating reply:', error));
+        }
+    }
+
+    // 댓글 삭제
+    function deleteReply(replyId) {
+        if (confirm('정말 삭제하시겠습니까?')) {
+            fetch(`/api/reply/${boardId}/${replyId}`, {
+                method: 'DELETE',
+            })
+                .then(response => {
+                    if (response.status === 204) {
+                        loadReplies(replyPage);
+                    } else {
+                        throw new Error('댓글 삭제 실패');
+                    }
+                })
+                .catch(error => console.error('Error deleting reply:', error));
+        }
+    }
+    // 초기 댓글 목록 로드
+    loadReplies();
+
+    // 게시글 삭제
+    function deletePost() {
+        if (window.confirm('정말 삭제하시겠습니까?')) {
+            fetch(`/api/board/${boardId}`, {
+                method: 'DELETE',
+            })
+                .then(response => {
+                    if (response.status === 204) {
+                        alert('게시글이 성공적으로 삭제되었습니다.');
+                        window.location.href = '/board';
+                    } else {
+                        throw new Error('삭제에 실패했습니다.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting post:', error);
+                    alert('게시글 삭제 중 오류가 발생했습니다.');
+                });
+        }
+    }
+</script>
+</body>
+</html>

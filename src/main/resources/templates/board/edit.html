@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>게시판 - 글 수정</title>
+    <link rel="stylesheet" href="/webjars/bootstrap/5.3.3/css/bootstrap.min.css" />
+</head>
+<body>
+<header th:insert="~{common/header.html}"></header>
+<div class="container">
+    <!--<form th:action="@{'/board/edit/' + ${post.id}}" method="post">-->
+    <form id="edit-form" method="post">
+        <!--<input type="hidden" name="_method" value="put" />-->
+        <!--<input type="hidden" name="id" th:value="${post.id}" />-->
+        <input type="hidden" id="board-id" name="id" />
+        <div class="form-group row">
+            <label for="inputTitle" class="col-sm-2 col-form-label"><strong>제목</strong></label>
+            <div class="col-sm-10">
+                <!--
+                <input
+                        type="text"
+                        name="title"
+                        class="form-control"
+                        id="inputTitle"
+                        th:value="${post.title}"
+                />
+                -->
+                <input
+                        type="text"
+                        name="title"
+                        class="form-control"
+                        id="inputTitle"
+                />
+            </div>
+        </div>
+        <div class="form-group row">
+            <label for="inputAuthor" class="col-sm-2 col-form-label"><strong>작성자</strong></label>
+            <div class="col-sm-10">
+                <!--
+                <input
+                        type="text"
+                        name="author"
+                        class="form-control"
+                        id="inputAuthor"
+                        th:value="${post.author}"
+                />
+                -->
+                <input
+                        type="text"
+                        name="author"
+                        class="form-control"
+                        id="inputAuthor"
+                        disabled
+                />
+            </div>
+        </div>
+        <div class="form-group row">
+            <label for="inputContent" class="col-sm-2 col-form-label"><strong>내용</strong></label>
+            <div class="col-sm-10">
+            <!--
+            <textarea
+                    type="text"
+                    name="content"
+                    class="form-control"
+                    id="inputContent"
+                    th:value="${post.content}"
+            ></textarea>
+            -->
+                <textarea
+                        type="text"
+                        name="content"
+                        class="form-control"
+                        id="inputContent"
+                ></textarea>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-auto mr-auto"></div>
+            <div class="col-auto">
+                <input class="btn btn-primary" type="submit" role="button" value="수정" />
+            </div>
+        </div>
+    </form>
+</div>
+<script src="/webjars/jquery/3.7.1/dist/jquery.min.js"></script>
+<script src="/webjars/bootstrap/5.3.3/js/bootstrap.min.js"></script>
+<script>
+    // URL에서 boardId 가져오기
+    const boardId = window.location.pathname.split('/').pop();
+
+    // REST API 호출하여 게시글 데이터 로드
+    fetch(`/api/board/${boardId}`)
+        .then(response => response.json())
+        .then(data => {
+            // 데이터 로드 후 폼 채우기
+            document.getElementById('board-id').value = data.boardId;
+            document.getElementById('inputTitle').value = data.title;
+            document.getElementById('inputAuthor').value = data.author; // 작성자
+            document.getElementById('inputContent').value = data.content;
+        })
+        .catch(error => {
+            console.error('Error loading post data:', error);
+            alert('게시글 데이터를 불러오는 중 오류가 발생했습니다.');
+        });
+
+    // 폼 제출 이벤트 처리
+    document.getElementById('edit-form').addEventListener('submit', function (event) {
+        event.preventDefault(); // 기본 폼 제출 막기
+
+        // 수정된 데이터 수집
+        const updatedData = {
+            title: document.getElementById('inputTitle').value,
+            content: document.getElementById('inputContent').value,
+            author: document.getElementById('inputAuthor').value // 작성자
+        };
+
+        // REST API로 PUT 요청
+        fetch(`/api/board/${boardId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatedData),
+        })
+            .then(response => {
+                if (response.ok) {
+                    alert('게시글이 성공적으로 수정되었습니다!');
+                    window.location.href = `/board/${boardId}`; // 수정 후 상세 페이지로 이동
+                } else {
+                    throw new Error('수정에 실패했습니다.');
+                }
+            })
+            .catch(error => {
+                console.error('Error updating post:', error);
+                alert('게시글 수정 중 오류가 발생했습니다.');
+            });
+    });
+</script>
+</body>
+</html>

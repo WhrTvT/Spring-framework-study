@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/webjars/bootstrap/5.3.3/css/bootstrap.min.css" />
+</head>
+<div class="navbar navbar-dark bg-dark shadow-sm mb-3">
+    <div class="container d-flex justify-content-between">
+        <a href="/board" class="navbar-brand d-flex align-items-center">
+            <strong>게시판</strong>
+        </a>
+        <div class="d-flex align-items-center">
+<!--            <span id="username-display" class="text-white me-3"></span>-->
+            <button id="logout-button" class="btn btn-outline-light btn-sm">로그아웃</button>
+        </div>
+    </div>
+</div>
+<script src="/webjars/jquery/3.7.1/dist/jquery.min.js"></script>
+<script src="/webjars/bootstrap/5.3.3/js/bootstrap.min.js"></script>
+<script>
+    // // JWT 토큰에서 사용자명 추출 및 표시
+    const token = localStorage.getItem('jwtToken');
+
+    // if (token) {
+    //     const payload = JSON.parse(atob(token.split('.')[1])); // JWT의 payload를 디코딩
+    //     const username = payload.username || '익명 사용자'; // payload에서 username 추출
+    //     document.getElementById('username-display').textContent = `안녕하세요, ${username}님`;
+    // } else {
+    //     document.getElementById('username-display').textContent = '로그인이 필요합니다.';
+    // }
+
+    // 로그아웃 버튼 이벤트 핸들러
+    document.getElementById('logout-button').addEventListener('click', () => {
+        // 로컬 스토리지에서 JWT 토큰 삭제
+        // localStorage.removeItem('jwtToken');
+
+        // 로그아웃 요청 보내기 (옵션)
+        fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+            .then(response => {
+                if (response.ok) {
+                    alert('로그아웃되었습니다.');
+                    window.location.href = '/auth/login'; // 로그인 페이지로 리디렉션
+                } else {
+                    throw new Error('로그아웃 실패');
+                }
+            })
+            .catch(error => {
+                console.error('Error logging out:', error);
+                alert('로그아웃 중 오류가 발생했습니다.');
+            });
+    });
+</script>
+<script>
+    // Fetch API 요청 시 Authorization 헤더 자동 추가
+    const originalFetch = window.fetch;
+
+    window.fetch = async (url, options = {}) => {
+        // const token = sessionStorage.getItem('Authorization'); // 세션에서 Authorization 가져오기
+
+        if (token) {
+            options.headers = {
+                ...(options.headers || {}), // 기존 헤더 유지
+                'Authorization': token,    // Authorization 헤더 추가
+            };
+        }
+
+        return originalFetch(url, options);
+    };
+
+    // 세션에 Authorization 값이 없는 경우 로그인 페이지로 리디렉션
+    const token = sessionStorage.getItem('Authorization');
+    if (!token) {
+        console.warn('로그인이 필요합니다.');
+        window.location.href = '/auth/login'; // 로그인 페이지로 리디렉션
+    }
+</script>
